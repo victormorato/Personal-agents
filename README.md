@@ -9,8 +9,12 @@ why they were made — read that before changing the shape of anything here.
 
 ## Status
 
-Backend skeleton only. Not yet deployed, not yet connected to a real
-database, Android app not yet scaffolded. See "Next steps" below.
+Backend is built, deployed, and verified end-to-end (logging, CEO reasoning,
+disclaimers, the event-check pipeline). Android app is scaffolded — see
+[android/README.md](android/README.md) for its own setup (a Firebase project
+is required before it will even build). Not yet installed on a device.
+
+**Live backend**: `https://personal-agents-api.onrender.com`
 
 ## Backend — local setup
 
@@ -24,35 +28,37 @@ uvicorn app.main:app --reload
 ```
 
 Requires a running Postgres instance for `DATABASE_URL` — either a local
-one for development, or the Render-managed instance once provisioned.
+one for development, or the Render-managed instance.
 
-## Backend — Render deployment
+## Backend — Render deployment (done)
 
-- **Web service**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-- **Cron job**: `python -m worker.event_check`, on whatever cadence you set
-  (starting assumption: hourly — see `EVENT_CHECK_INTERVAL_HOURS` in
-  `app/config.py`)
-- **Postgres**: managed instance, `DATABASE_URL` wired into both the web
-  service and the cron job's environment
+- **Web service** (`personal-agents-api`): `cd backend && uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+- **Cron job** (`personal-agents-event-check`): `cd backend && python -m worker.event_check`, hourly at :07 (see `EVENT_CHECK_INTERVAL_HOURS` in `app/config.py`)
+- **Postgres** (`personal-agents-db`): paid persistent plan, `DATABASE_URL` wired into both services
 
-Not yet provisioned — next step once the backend skeleton is reviewed.
+Repo is linked to Render by raw GitHub URL, not through Render's GitHub App —
+**auto-deploy on push doesn't fire**. After pushing, trigger a deploy manually
+(Render dashboard's "Manual Deploy", or the connected Render MCP's
+`trigger_deploy`).
 
 ## API surface (v1)
 
-- `POST /exercise/logs`, `GET /exercise/logs`, `POST /exercise/sync/google-fit` (stub)
+- `POST /exercise/logs`, `GET /exercise/logs`
 - `POST /finance/transactions`, `GET /finance/transactions`,
   `POST /finance/transactions/import-csv`, `GET /finance/summary`
 - `POST /ceo/ask` — on-demand question to the CEO
 - `POST /ceo/event-check` — manual trigger for the same logic the cron job runs
-- `GET /health`
+- `GET /ceo/events`, `DELETE /ceo/events/{id}` — the CEO's notification history
+- `GET /health` — no auth required
 
-All routes except `/health` require `Authorization: Bearer <API_AUTH_TOKEN>`.
+All other routes require `Authorization: Bearer <API_AUTH_TOKEN>`.
 
 ## Next steps
 
-1. Provision Render infra (Postgres, web service, cron job) via the
-   connected Render MCP.
-2. Deploy and smoke-test the backend against the real database.
-3. Scaffold the native Android app (Kotlin) against this API.
-4. Google Fit OAuth flow (currently a stub in `routers/exercise.py`).
-5. FCM device-token registration (currently a stub in `worker/event_check.py`).
+1. Install the Android app on a real device (needs a Firebase project first
+   — see `android/README.md`).
+2. Wire up FCM device-token registration so the cron job can actually push to
+   a specific device (currently a stub in `backend/worker/event_check.py`).
+3. Exercise the app for real for a while — the decision-support framing,
+   the CEO's event-judgment quality, and the stakes-based conflict handling
+   are all easier to evaluate with real data than synthetic tests.

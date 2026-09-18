@@ -1,0 +1,5 @@
+<resources>
+    <!-- Compose owns the actual theming (see ui/theme/) — this base theme
+         only needs to exist for the manifest and the launch window. -->
+    <style name="Theme.PersonalAgents" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>
