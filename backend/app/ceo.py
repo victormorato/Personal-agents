@@ -87,39 +87,52 @@ class CEOAgent:
             + "\n\nYou are now doing the periodic event-check. Given the "
             "candidate facts below, decide which (if any) are actually "
             "worth a push notification to the user. Most days, nothing is. "
-            "Respond with one short line per fact worth surfacing, or "
-            "nothing at all if none qualify.",
+            "Respond with EXACTLY one line per fact worth surfacing, each "
+            "formatted as `SURFACE: <one-sentence description>`, and "
+            "nothing else. If no fact is worth surfacing, respond with the "
+            "single word NONE and nothing else. Do not add commentary, "
+            "reasoning, or any line that isn't a SURFACE: line or NONE — "
+            "extra lines are parsed literally, so any stray line becomes a "
+            "spurious notification.",
             messages=[{"role": "user", "content": candidate_text}],
         )
         decision_text = message.content[0].text.strip()
 
+        # Only lines explicitly marked SURFACE: count. This is deliberately
+        # strict — a prior version treated every non-empty line as a distinct
+        # event, so any explanatory prose Claude added around its decision
+        # got miscounted as separate surfaced events (see commit history).
         surfaced: list[SurfacedEvent] = []
-        if decision_text:
-            for line in decision_text.splitlines():
-                line = line.strip("- ").strip()
-                if not line:
-                    continue
-                # Stakes on the persisted event follows the source division's
-                # own flag — the CEO's judgment decided IF to surface, this
-                # governs how it's displayed/escalated in the app.
-                matching = next(
-                    (c for c in candidates if c.division in line.lower() or c.fact in line),
-                    None,
-                )
-                stakes = matching.stakes if matching else "low"
-                division_name = matching.division if matching else "ceo"
-                disclaimer = next(
-                    (d.disclaimer() for d in self.divisions if d.name == division_name),
-                    None,
-                )
-                event = SurfacedEvent(
-                    division=division_name,
-                    summary=line,
-                    stakes=stakes,
-                    disclaimer=disclaimer,
-                )
-                self.db.add(event)
-                surfaced.append(event)
+        for line in decision_text.splitlines():
+            line = line.strip()
+            if not line.startswith("SURFACE:"):
+                continue
+            fact_text = line.removeprefix("SURFACE:").strip()
+            if not fact_text:
+                continue
+            # Stakes on the persisted event follows the source division's
+            # own flag — the CEO's judgment decided IF to surface, this
+            # governs how it's displayed/escalated in the app.
+            matching = next(
+                (c for c in candidates if c.division in fact_text.lower() or c.fact in fact_text),
+                None,
+            )
+            stakes = matching.stakes if matching else "low"
+            division_name = matching.division if matching else "ceo"
+            disclaimer = next(
+                (d.disclaimer() for d in self.divisions if d.name == division_name),
+                None,
+            )
+            event = SurfacedEvent(
+                division=division_name,
+                summary=fact_text,
+                stakes=stakes,
+                disclaimer=disclaimer,
+            )
+            self.db.add(event)
+            surfaced.append(event)
+
+        if surfaced:
             self.db.commit()
 
         return surfaced
