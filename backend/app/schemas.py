@@ -52,3 +52,16 @@ class CEOAskIn(BaseModel):
 class CEOResponse(BaseModel):
     answer: str
     disclaimer: str | None = None
+
+
+class SurfacedEventOut(BaseModel):
+    id: int
+    division: str
+    summary: str
+    stakes: str
+    disclaimer: str | None = None
+    created_at: datetime
+    delivered: bool
+
+    class Config:
+        from_attributes = True
