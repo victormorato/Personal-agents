@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -33,3 +33,14 @@ def list_events(db: Session = Depends(get_db)):
     notification history view reads this."""
     stmt = select(SurfacedEvent).order_by(SurfacedEvent.created_at.desc()).limit(100)
     return list(db.scalars(stmt))
+
+
+@router.delete("/events/{event_id}", status_code=204)
+def delete_event(event_id: int, db: Session = Depends(get_db)):
+    """Clears one surfaced event — the counterpart to the Android app's
+    eventual dismiss action, also used to clear stale/test rows by hand."""
+    event = db.get(SurfacedEvent, event_id)
+    if event is None:
+        raise HTTPException(status_code=404, detail="Event not found")
+    db.delete(event)
+    db.commit()
