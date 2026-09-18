@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# Android (added when the android/ project is scaffolded)
+android/.gradle/
+android/local.properties
+android/*/build/
+android/.idea/
+
+# OS
+.DS_Store
+Thumbs.db
