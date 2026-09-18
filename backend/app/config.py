@@ -8,9 +8,6 @@ class Settings(BaseSettings):
     anthropic_api_key: str
     api_auth_token: str
 
-    google_fit_client_id: str = ""
-    google_fit_client_secret: str = ""
-
     fcm_server_key: str = ""
 
     # How often the Render cron worker checks for CEO-worthy events.

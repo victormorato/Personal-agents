@@ -14,7 +14,7 @@ class ExerciseLog(Base):
     __tablename__ = "exercise_logs"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    source: Mapped[str] = mapped_column(String(20))  # "manual" | "google_fit"
+    source: Mapped[str] = mapped_column(String(20))  # "manual" | "health_connect"
     activity_type: Mapped[str] = mapped_column(String(50))
     duration_minutes: Mapped[float] = mapped_column(Float)
     calories: Mapped[float | None] = mapped_column(Float, nullable=True)

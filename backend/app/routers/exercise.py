@@ -25,13 +25,8 @@ def list_logs(db: Session = Depends(get_db)):
     return list(db.scalars(stmt))
 
 
-@router.post("/sync/google-fit")
-def sync_google_fit():
-    """Stub — Google Fit OAuth + data pull happens here. Needs
-    GOOGLE_FIT_CLIENT_ID/SECRET configured (see .env.example) and the
-    actual OAuth consent flow, which requires real credentials to build
-    and test against. Not implemented yet."""
-    return {
-        "status": "not_implemented",
-        "detail": "Google Fit sync requires OAuth credentials to be configured first.",
-    }
+# No server-side sync endpoint: Health Connect data is read on-device by the
+# Android app (on-device permissions, no OAuth/client secret involved), which
+# then posts each record to POST /logs above with source="health_connect".
+# See DESIGN.md — Exercise division for why this replaced the originally
+# planned Google Fit integration.

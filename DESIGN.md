@@ -49,7 +49,11 @@ professional. This is not optional framing; it's a correctness requirement
 given the liability and accuracy stakes involved.
 
 ### Exercise division
-- Data source: Google Fit / wearable sync (not manual-only).
+- Data source: **Health Connect** (not manual-only). Originally scoped as
+  "Google Fit" — corrected on 2026-09-18 when starting the Android build,
+  since Google has deprecated the old Fitness API in favor of Health
+  Connect as the current on-device fitness/health data store. Same intent
+  (pull real activity data automatically), different, current API.
 - Tracks activity, streaks, goal progress.
 
 ### Finance division
