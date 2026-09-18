@@ -1,3 +1,5 @@
+import json
+
 from anthropic import Anthropic
 from sqlalchemy.orm import Session
 
@@ -79,54 +81,54 @@ class CEOAgent:
         if not candidates:
             return []
 
-        candidate_text = "\n".join(f"- [{c.division}/{c.stakes}] {c.fact}" for c in candidates)
+        candidate_text = "\n".join(
+            f"{i}. [{c.division}/{c.stakes}] {c.fact}" for i, c in enumerate(candidates)
+        )
         message = _client.messages.create(
             model="claude-sonnet-4-5",
             max_tokens=1024,
             system=_SYSTEM_PROMPT
             + "\n\nYou are now doing the periodic event-check. Given the "
-            "candidate facts below, decide which (if any) are actually "
-            "worth a push notification to the user. Most days, nothing is. "
-            "Respond with EXACTLY one line per fact worth surfacing, each "
-            "formatted as `SURFACE: <one-sentence description>`, and "
-            "nothing else. If no fact is worth surfacing, respond with the "
-            "single word NONE and nothing else. Do not add commentary, "
-            "reasoning, or any line that isn't a SURFACE: line or NONE — "
-            "extra lines are parsed literally, so any stray line becomes a "
-            "spurious notification.",
+            "numbered candidate facts below, decide which (if any) are "
+            "actually worth a push notification to the user. Most days, "
+            'nothing is. Respond with ONLY a JSON object of the exact form '
+            '{"surface": [<indices>]}, where each index is the number of a '
+            "candidate fact worth surfacing. Use an empty array if none "
+            "qualify. No other text, no markdown code fences, no "
+            "explanation — your reasoning is not part of the output, only "
+            "the final decision.",
             messages=[{"role": "user", "content": candidate_text}],
         )
         decision_text = message.content[0].text.strip()
 
-        # Only lines explicitly marked SURFACE: count. This is deliberately
-        # strict — a prior version treated every non-empty line as a distinct
-        # event, so any explanatory prose Claude added around its decision
-        # got miscounted as separate surfaced events (see commit history).
+        # Parse a strict, schema-free JSON decision rather than free-form
+        # lines. A prior line-based format (even with a required prefix)
+        # let the model's own reasoning about *not* surfacing something
+        # masquerade as a surfaced event, since prose can still match a
+        # required prefix while meaning the opposite. Indices into the
+        # candidates we already built are unambiguous either way, and
+        # content (division/stakes/fact) comes from our own data, never
+        # from the model's paraphrase — so a malformed or verbose response
+        # can only fail closed (nothing surfaced), never fail open.
         surfaced: list[SurfacedEvent] = []
-        for line in decision_text.splitlines():
-            line = line.strip()
-            if not line.startswith("SURFACE:"):
+        try:
+            decision = json.loads(decision_text)
+            indices = decision["surface"]
+        except (json.JSONDecodeError, KeyError, TypeError):
+            indices = []
+
+        for i in indices:
+            if not isinstance(i, int) or not (0 <= i < len(candidates)):
                 continue
-            fact_text = line.removeprefix("SURFACE:").strip()
-            if not fact_text:
-                continue
-            # Stakes on the persisted event follows the source division's
-            # own flag — the CEO's judgment decided IF to surface, this
-            # governs how it's displayed/escalated in the app.
-            matching = next(
-                (c for c in candidates if c.division in fact_text.lower() or c.fact in fact_text),
-                None,
-            )
-            stakes = matching.stakes if matching else "low"
-            division_name = matching.division if matching else "ceo"
+            candidate = candidates[i]
             disclaimer = next(
-                (d.disclaimer() for d in self.divisions if d.name == division_name),
+                (d.disclaimer() for d in self.divisions if d.name == candidate.division),
                 None,
             )
             event = SurfacedEvent(
-                division=division_name,
-                summary=fact_text,
-                stakes=stakes,
+                division=candidate.division,
+                summary=candidate.fact,
+                stakes=candidate.stakes,
                 disclaimer=disclaimer,
             )
             self.db.add(event)
