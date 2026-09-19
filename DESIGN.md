@@ -99,6 +99,19 @@ API access, only whole-file operations via the connected Drive tool).
   imported; a row with one is already synced and skipped on subsequent
   syncs. v1 doesn't handle edits to already-synced rows — only new rows in
   either direction. Revisit if that turns out to matter in practice.
+- **Historical backfill (done 2026-09-19)**: the user's real "20XX -
+  Finances" sheets (2023-2026, one per year) were far too large/truncated
+  to extract reliably through Claude's file-level Drive access (a lossy
+  natural-language flattening of a 1000+ row sheet, with no guarantee of
+  completeness — this was tried and abandoned). Instead the user exported
+  each year's "Yearly" tab as CSV directly, which a PowerShell script
+  parsed into ~3,946 clean transactions (8 real accounts + a small
+  "Unknown" bucket for the ~7 source rows missing an account) and imported
+  via `POST /finance/transactions/import-csv` (extended to accept an
+  `account` column). This data lives in Postgres now; it reaches the
+  actual Google Sheet once the service account is configured and sync()
+  pushes the backlog out — caught and fixed a real quota problem first
+  (see `app/sheets.py` — batched Sheets API calls, not one request per row).
 - **Sync trigger**: rides the existing hourly cron job (extends
   `worker/event_check.py`'s cadence) rather than adding a second schedule.
 - **Auth setup**: needs a Google Cloud service account with the Sheets API
