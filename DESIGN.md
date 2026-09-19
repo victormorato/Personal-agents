@@ -57,10 +57,55 @@ given the liability and accuracy stakes involved.
 - Tracks activity, streaks, goal progress.
 
 ### Finance division
-- Data source: manual entry / CSV import (no live bank connection in v1 —
-  deferred to avoid the security/compliance weight of a service like Plaid
-  in a first version).
-- Tracks transactions, budget usage, flags upcoming known bills.
+- Data source: manual entry / CSV import, **plus a bidirectional Google
+  Sheets sync** (added 2026-09-19 — see "Google Sheets integration" below).
+  Still no live bank connection (Plaid-style) — the Sheets sync is
+  lower-stakes than that and doesn't change that boundary.
+- Tracks transactions, accounts, budget usage, flags upcoming known bills.
+
+## Google Sheets integration (added 2026-09-19)
+
+Grilled separately from the original build — see the design tree below.
+Started from "integrate finance with my Google Sheet" and reframed once a
+real tooling constraint surfaced (Claude has no cell/formula-level Sheets
+API access, only whole-file operations via the connected Drive tool).
+
+- **Sync direction**: bidirectional — both the app and the sheet can be the
+  point of entry for a transaction; the sync reconciles both.
+- **Sync location**: the Render backend holds its own Google credentials
+  (a service account, not OAuth — no user present for a repeated consent
+  flow) and syncs on its own, independent of any Claude session or the
+  Android app being open.
+- **Sheet scope — reframed**: the sheet does **not** stay the "smart" layer.
+  The user's real sheet ("2026 - Finances") was significantly more complex
+  than assumed — 6 real bank/credit accounts, hand-maintained dashboard and
+  yearly rollups, a new sheet started each year — and the user wants it
+  more dynamic: live projections, month/year comparisons, and predictive
+  budget-overrun alerts. Claude cannot build spreadsheet formulas/multi-tab
+  structure through any available tool, so **the smart work moves to the
+  backend + CEO agent** (which can actually be built and verified) instead
+  of trying to force Google Sheets into being dynamic:
+  - **Sheet**: simplified to one clean, continuous "Transactions" tab (no
+    more per-account column blocks, no yearly sheet restart — one running
+    log, filterable by date).
+  - **Backend**: gains an `Account` concept and a per-category `Budget`,
+    computes projected balances, and forecasts budget-overrun risk.
+  - **CEO**: the existing event-check mechanism (already stakes-based, see
+    above) is the delivery channel for a "trending over budget" alert —
+    no new alerting mechanism needed, this is the one that already exists.
+  - **App**: comparison/trend views live here, not in Sheets charts.
+- **Dedup / conflict handling**: the sheet gets a backend-written `Synced
+  ID` column. A row without one is new (not yet in Postgres) and gets
+  imported; a row with one is already synced and skipped on subsequent
+  syncs. v1 doesn't handle edits to already-synced rows — only new rows in
+  either direction. Revisit if that turns out to matter in practice.
+- **Sync trigger**: rides the existing hourly cron job (extends
+  `worker/event_check.py`'s cadence) rather than adding a second schedule.
+- **Auth setup**: needs a Google Cloud service account with the Sheets API
+  enabled, its JSON key stored as a Render secret, and the sheet shared
+  with the service account's email — a one-time manual step (Google Cloud
+  project creation is account-level, same category as the Firebase setup
+  above).
 
 ## Second-tier decisions (made pragmatically during build, not separately grilled)
 

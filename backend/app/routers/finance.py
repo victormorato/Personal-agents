@@ -6,11 +6,20 @@ from fastapi import APIRouter, Depends, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import sheets
 from app.auth import require_auth
 from app.database import get_db
 from app.divisions.finance import FinanceDivision
-from app.models import FinanceTransaction, TransactionType
-from app.schemas import DivisionResponse, FinanceTransactionIn, FinanceTransactionOut
+from app.models import Account, Budget, FinanceTransaction, TransactionType
+from app.schemas import (
+    AccountOut,
+    BudgetIn,
+    BudgetOut,
+    DivisionResponse,
+    FinanceTransactionIn,
+    FinanceTransactionOut,
+    SheetSyncResult,
+)
 
 router = APIRouter(prefix="/finance", tags=["finance"], dependencies=[Depends(require_auth)])
 
@@ -62,3 +71,36 @@ def summary(db: Session = Depends(get_db)):
         summary=division.summarize_recent_activity(),
         disclaimer=division.disclaimer(),
     )
+
+
+@router.get("/accounts", response_model=list[AccountOut])
+def list_accounts(db: Session = Depends(get_db)):
+    return list(db.scalars(select(Account).order_by(Account.name)))
+
+
+@router.post("/budgets", response_model=BudgetOut)
+def upsert_budget(payload: BudgetIn, db: Session = Depends(get_db)):
+    """Create or update the budget for a category — category is unique, so
+    posting the same category again just updates the limit."""
+    budget = db.scalar(select(Budget).where(Budget.category == payload.category))
+    if budget is None:
+        budget = Budget(**payload.model_dump())
+        db.add(budget)
+    else:
+        budget.monthly_limit = payload.monthly_limit
+    db.commit()
+    db.refresh(budget)
+    return budget
+
+
+@router.get("/budgets", response_model=list[BudgetOut])
+def list_budgets(db: Session = Depends(get_db)):
+    return list(db.scalars(select(Budget).order_by(Budget.category)))
+
+
+@router.post("/sync-sheet", response_model=SheetSyncResult)
+def sync_sheet(db: Session = Depends(get_db)):
+    """Also reachable directly for manual testing — the Render cron job
+    calls this same logic on the same cadence as the CEO event-check (see
+    DESIGN.md — Google Sheets integration, sync trigger)."""
+    return sheets.sync(db)

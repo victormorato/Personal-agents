@@ -14,5 +14,12 @@ class Settings(BaseSettings):
     # Starting assumption per DESIGN.md — adjust without a redesign.
     event_check_interval_hours: int = 1
 
+    # Google Sheets sync (see DESIGN.md — Google Sheets integration).
+    # Empty by default: sync no-ops gracefully until both are configured,
+    # rather than crashing the app on startup like the other secrets do —
+    # this one's genuinely optional, not required for the app to function.
+    google_service_account_json: str = ""
+    google_sheet_id: str = ""
+
 
 settings = Settings()

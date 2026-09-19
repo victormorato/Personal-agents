@@ -27,13 +27,41 @@ class FinanceTransactionIn(BaseModel):
     amount: float
     description: str | None = None
     occurred_at: datetime
+    account_id: int | None = None
 
 
 class FinanceTransactionOut(FinanceTransactionIn):
     id: int
+    sheet_row_id: str | None = None
 
     class Config:
         from_attributes = True
+
+
+class AccountOut(BaseModel):
+    id: int
+    name: str
+
+    class Config:
+        from_attributes = True
+
+
+class BudgetIn(BaseModel):
+    category: str
+    monthly_limit: float
+
+
+class BudgetOut(BudgetIn):
+    id: int
+
+    class Config:
+        from_attributes = True
+
+
+class SheetSyncResult(BaseModel):
+    status: str
+    imported: int | None = None
+    pushed: int | None = None
 
 
 class DivisionResponse(BaseModel):
