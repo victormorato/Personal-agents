@@ -64,6 +64,10 @@ class SheetSyncResult(BaseModel):
     pushed: int | None = None
 
 
+class ImportCsvResult(BaseModel):
+    created: int
+
+
 class DivisionResponse(BaseModel):
     """Every division response carries its own disclaimer field per
     DESIGN.md — attached inline, not a one-time banner, so it can't be

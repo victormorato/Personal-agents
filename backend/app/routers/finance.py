@@ -18,6 +18,7 @@ from app.schemas import (
     DivisionResponse,
     FinanceTransactionIn,
     FinanceTransactionOut,
+    ImportCsvResult,
     SheetSyncResult,
 )
 
@@ -39,29 +40,48 @@ def list_transactions(db: Session = Depends(get_db)):
     return list(db.scalars(stmt))
 
 
-@router.post("/transactions/import-csv", response_model=list[FinanceTransactionOut])
+@router.post("/transactions/import-csv", response_model=ImportCsvResult)
 async def import_csv(file: UploadFile, db: Session = Depends(get_db)):
     """Expects columns: type,category,amount,description,occurred_at
-    (occurred_at as ISO 8601). This is a minimal parser for v1 — no
-    per-bank-export format detection, that's a later refinement once real
-    statements are tested against it."""
+    (occurred_at as ISO 8601), plus an optional account column (matched or
+    created by name). Used both for regular CSV imports and the one-time
+    historical backfill from the pre-app years of spreadsheet data (see
+    DESIGN.md — Google Sheets integration). Returns a count rather than the
+    full created list — a large historical import would otherwise return a
+    response body with thousands of objects nobody needs to see.
+
+    This is a minimal parser for v1 — no per-bank-export format detection,
+    that's a later refinement once real statements are tested against it."""
     contents = await file.read()
     reader = csv.DictReader(io.StringIO(contents.decode("utf-8")))
-    created = []
+    account_cache: dict[str, Account] = {}
+    count = 0
     for row in reader:
+        account_id = None
+        account_name = (row.get("account") or row.get("Account") or "").strip()
+        if account_name:
+            account = account_cache.get(account_name)
+            if account is None:
+                account = db.scalar(select(Account).where(Account.name == account_name))
+                if account is None:
+                    account = Account(name=account_name)
+                    db.add(account)
+                    db.flush()
+                account_cache[account_name] = account
+            account_id = account.id
+
         txn = FinanceTransaction(
-            type=TransactionType(row["type"]),
+            type=TransactionType(row["type"].strip().lower()),
             category=row["category"],
             amount=float(row["amount"]),
-            description=row.get("description"),
+            description=row.get("description") or None,
             occurred_at=datetime.fromisoformat(row["occurred_at"]),
+            account_id=account_id,
         )
         db.add(txn)
-        created.append(txn)
+        count += 1
     db.commit()
-    for txn in created:
-        db.refresh(txn)
-    return created
+    return ImportCsvResult(created=count)
 
 
 @router.get("/summary", response_model=DivisionResponse)
