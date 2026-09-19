@@ -66,7 +66,14 @@ def sync(db: Session) -> dict:
         spreadsheetId=settings.google_sheet_id, range=_RANGE
     ).execute().get("values", [])
 
+    # Two API calls total for the pull side, regardless of row count: one
+    # batchUpdate for every Synced ID cell that needs writing, not one
+    # update() per row — Sheets' write quota (roughly 60 requests/min/user
+    # on the default tier) makes a per-row loop slow and rate-limit-prone
+    # once there are more than a handful of rows to import (e.g. the
+    # historical backfill's ~4000 transactions).
     imported = 0
+    id_writes = []
     for i, row in enumerate(rows, start=2):  # row 2 is the first data row
         row = row + [""] * (7 - len(row))  # pad short rows (trailing blanks are dropped by the API)
         synced_id, date_str, account_name, txn_type, category, amount_str, description = row[:7]
@@ -85,40 +92,48 @@ def sync(db: Session) -> dict:
             sheet_row_id=new_id,
         )
         db.add(txn)
-        sheet.values().update(
-            spreadsheetId=settings.google_sheet_id,
-            range=f"{_SHEET_TAB}!A{i}",
-            valueInputOption="RAW",
-            body={"values": [[new_id]]},
-        ).execute()
+        id_writes.append({"range": f"{_SHEET_TAB}!A{i}", "values": [[new_id]]})
         imported += 1
+
+    if id_writes:
+        sheet.values().batchUpdate(
+            spreadsheetId=settings.google_sheet_id,
+            body={"valueInputOption": "RAW", "data": id_writes},
+        ).execute()
     db.commit()
 
+    # Same reasoning for the push side — one append() call carrying every
+    # pending row's values, not one call per transaction.
     pending = db.scalars(
         select(FinanceTransaction).where(FinanceTransaction.sheet_row_id.is_(None))
     ).all()
     pushed = 0
-    for txn in pending:
-        new_id = str(uuid.uuid4())
-        account = db.get(Account, txn.account_id) if txn.account_id else None
-        account_name = account.name if account else ""
+    if pending:
+        account_ids = {t.account_id for t in pending if t.account_id}
+        accounts = {a.id: a.name for a in db.scalars(select(Account).where(Account.id.in_(account_ids)))} if account_ids else {}
+
+        push_rows = []
+        for txn in pending:
+            new_id = str(uuid.uuid4())
+            push_rows.append([
+                new_id,
+                txn.occurred_at.isoformat(),
+                accounts.get(txn.account_id, ""),
+                txn.type.value,
+                txn.category,
+                str(txn.amount),
+                txn.description or "",
+            ])
+            txn.sheet_row_id = new_id
+            pushed += 1
+
         sheet.values().append(
             spreadsheetId=settings.google_sheet_id,
             range=f"{_SHEET_TAB}!A:G",
             valueInputOption="RAW",
             insertDataOption="INSERT_ROWS",
-            body={"values": [[
-                new_id,
-                txn.occurred_at.isoformat(),
-                account_name,
-                txn.type.value,
-                txn.category,
-                str(txn.amount),
-                txn.description or "",
-            ]]},
+            body={"values": push_rows},
         ).execute()
-        txn.sheet_row_id = new_id
-        pushed += 1
     db.commit()
 
     return {"status": "ok", "imported": imported, "pushed": pushed}
