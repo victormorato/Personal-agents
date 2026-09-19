@@ -3,10 +3,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
-    // Temporarily disabled to verify the rest of the build compiles cleanly
-    // ahead of a real google-services.json — see android/README.md. Re-enable
-    // once that file exists.
-    // id("com.google.gms.google-services")
+    id("com.google.gms.google-services")
 }
 
 android {

@@ -12,14 +12,16 @@ JDK 17, Android SDK platform 35 + build-tools 35.0.0 (installed via Google's
 official [Android CLI](https://developer.android.com/tools/agents/android-cli)),
 Gradle 8.9 (wrapper committed — `gradlew`/`gradlew.bat`/`gradle-wrapper.jar`).
 
-**One plugin is deliberately disabled right now**: `com.google.gms.google-services`
-is commented out in `app/build.gradle.kts` because it hard-fails the build
-without a real `google-services.json` (see below). Re-enable that line once
-the file exists — everything else already builds clean without it.
+**Firebase is live** (2026-09-19) — `google-services.json` is in place at
+`android/app/google-services.json` and the `com.google.gms.google-services`
+plugin is enabled. `processDebugGoogleServices` runs and the build stays
+clean. **That file is gitignored, not committed** — a Claude Code auto-mode
+guardrail flagged committing it as credential-leakage risk, and the cautious
+default (keep it out of the public repo) was kept rather than overridden.
+If you set this project up on a different machine, you'll need to re-download
+`google-services.json` from the Firebase console and place it there again.
 
-## Required before Firebase/push actually works
-
-**Firebase project (for push notifications):**
+## If you need to redo the Firebase setup from scratch
 
 1. Go to the [Firebase Console](https://console.firebase.google.com), create a
    project (any name).
@@ -27,7 +29,6 @@ the file exists — everything else already builds clean without it.
    (must match exactly — see `app/build.gradle.kts` `applicationId`).
 3. Download the generated `google-services.json` and place it at
    `android/app/google-services.json`.
-4. Uncomment `id("com.google.gms.google-services")` in `app/build.gradle.kts`.
 
 **Health Connect (for exercise sync):**
 

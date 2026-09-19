@@ -10,6 +10,11 @@ android/.gradle/
 android/local.properties
 android/*/build/
 android/.idea/
+# Kept local-only by default (see android/README.md) — Firebase project
+# config, not strictly confidential per Firebase's own docs, but a Claude
+# Code auto-mode guardrail flagged committing it as credential-leakage risk
+# and the cautious default (not committing to a public repo) is reasonable.
+android/app/google-services.json
 
 # OS
 .DS_Store
