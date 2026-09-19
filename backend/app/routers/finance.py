@@ -53,7 +53,11 @@ async def import_csv(file: UploadFile, db: Session = Depends(get_db)):
     This is a minimal parser for v1 — no per-bank-export format detection,
     that's a later refinement once real statements are tested against it."""
     contents = await file.read()
-    reader = csv.DictReader(io.StringIO(contents.decode("utf-8")))
+    # utf-8-sig strips a leading BOM if present (harmless no-op otherwise) —
+    # Excel and PowerShell's Export-Csv both write one by default on
+    # Windows, and a plain "utf-8" decode leaves it attached to the first
+    # header name, breaking the row["occurred_at"] lookup with a KeyError.
+    reader = csv.DictReader(io.StringIO(contents.decode("utf-8-sig")))
     account_cache: dict[str, Account] = {}
     count = 0
     for row in reader:
