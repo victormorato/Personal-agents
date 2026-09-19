@@ -2,7 +2,7 @@ package com.personalagents.app.ui
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Paid
@@ -30,7 +30,7 @@ import com.personalagents.app.ui.screens.SettingsScreen
 
 private sealed class Destination(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector) {
     data object Home : Destination("home", "CEO", Icons.Filled.Home)
-    data object Exercise : Destination("exercise", "Exercise", Icons.Filled.DirectionsRun)
+    data object Exercise : Destination("exercise", "Exercise", Icons.AutoMirrored.Filled.DirectionsRun)
     data object Finance : Destination("finance", "Finance", Icons.Filled.Paid)
     data object Events : Destination("events", "Updates", Icons.Filled.Notifications)
     data object Settings : Destination("settings", "Settings", Icons.Filled.Settings)

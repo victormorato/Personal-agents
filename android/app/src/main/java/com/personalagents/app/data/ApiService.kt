@@ -6,7 +6,7 @@ import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
 
-/** Mirrors backend/app/routers/*.py — one interface, matching the backend's flat route layout. */
+/** Mirrors the route files under backend/app/routers — one interface, matching the backend's flat route layout. */
 interface ApiService {
 
     @POST("exercise/logs")

@@ -3,7 +3,21 @@
 Native Kotlin/Jetpack Compose client for the backend in `../backend`. See
 `../DESIGN.md` for the architectural decisions this follows.
 
-## Required before this builds at all
+## Build status
+
+**Verified building on Windows via command line** (2026-09-19) —
+`.\gradlew.bat assembleDebug` succeeds cleanly with zero warnings, producing
+`app/build/outputs/apk/debug/app-debug.apk`. Local toolchain used: Temurin
+JDK 17, Android SDK platform 35 + build-tools 35.0.0 (installed via Google's
+official [Android CLI](https://developer.android.com/tools/agents/android-cli)),
+Gradle 8.9 (wrapper committed — `gradlew`/`gradlew.bat`/`gradle-wrapper.jar`).
+
+**One plugin is deliberately disabled right now**: `com.google.gms.google-services`
+is commented out in `app/build.gradle.kts` because it hard-fails the build
+without a real `google-services.json` (see below). Re-enable that line once
+the file exists — everything else already builds clean without it.
+
+## Required before Firebase/push actually works
 
 **Firebase project (for push notifications):**
 
@@ -13,11 +27,7 @@ Native Kotlin/Jetpack Compose client for the backend in `../backend`. See
    (must match exactly — see `app/build.gradle.kts` `applicationId`).
 3. Download the generated `google-services.json` and place it at
    `android/app/google-services.json`.
-
-The `com.google.gms.google-services` Gradle plugin (already wired into
-`app/build.gradle.kts`) fails the build immediately if that file is missing —
-this isn't optional for compiling, only for whether push notifications
-actually work once it's running.
+4. Uncomment `id("com.google.gms.google-services")` in `app/build.gradle.kts`.
 
 **Health Connect (for exercise sync):**
 
@@ -25,11 +35,21 @@ The Health Connect app itself must be present on the test device/emulator —
 built into Android 14+, installable from the Play Store on Android 9–13. No
 project-side setup beyond what's already in the manifest/gradle files.
 
-## Opening the project
+## Building locally
 
-Open the `android/` folder (not the repo root) in Android Studio — it should
-sync Gradle automatically. First build will also need the Android SDK
-installed via Android Studio's SDK Manager if you haven't used it before.
+```powershell
+cd android
+.\gradlew.bat assembleDebug
+```
+
+Requires `JAVA_HOME` set to a JDK 17 install and `local.properties` pointing
+`sdk.dir` at your Android SDK (both are machine-specific and gitignored —
+set them up once per machine, not committed).
+
+## Opening the project in Android Studio
+
+Open the `android/` folder (not the repo root) — it should detect the
+existing SDK/Gradle setup and sync automatically.
 
 ## First run
 
